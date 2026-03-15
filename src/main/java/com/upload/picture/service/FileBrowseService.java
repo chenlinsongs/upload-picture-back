@@ -38,7 +38,7 @@ public class FileBrowseService {
     ));
     
     @Autowired
-    private RootConfigService rootConfigService;
+    private com.upload.picture.config.MediaBrowseConfig mediaBrowseConfig;
     
     @Autowired
     private DirectoryCacheService directoryCacheService;
@@ -51,20 +51,20 @@ public class FileBrowseService {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            MediaRoot root = rootConfigService.getRootById(rootId);
+            MediaRoot root = mediaBrowseConfig.getRootById(rootId);
             if (root == null) {
                 result.put("success", false);
                 result.put("error", "根目录不存在: " + rootId);
                 return result;
             }
             
-            if (!rootConfigService.isPathAllowed(rootId, relativePath)) {
+            if (!mediaBrowseConfig.isPathAllowed(rootId, relativePath)) {
                 result.put("success", false);
                 result.put("error", "路径不允许访问");
                 return result;
             }
             
-            String fullPath = rootConfigService.getFullPath(rootId, relativePath);
+            String fullPath = mediaBrowseConfig.getFullPath(rootId, relativePath);
             if (fullPath == null) {
                 result.put("success", false);
                 result.put("error", "无法解析路径");
@@ -509,7 +509,7 @@ public class FileBrowseService {
     }
     
     public File getFileById(String rootId, String fileId) {
-        MediaRoot root = rootConfigService.getRootById(rootId);
+        MediaRoot root = mediaBrowseConfig.getRootById(rootId);
         if (root == null) {
             logger.warn("根目录不存在: {}", rootId);
             return null;

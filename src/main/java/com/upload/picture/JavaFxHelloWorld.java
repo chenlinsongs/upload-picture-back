@@ -1,9 +1,9 @@
 package com.upload.picture;
 
-import com.upload.picture.config.AppConfig;
+import com.upload.picture.config.StorageConfig;
 import com.upload.picture.model.MediaRoot;
 import com.upload.picture.service.FileStatisticsService;
-import com.upload.picture.service.RootConfigService;
+import com.upload.picture.config.MediaBrowseConfig;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -35,9 +35,9 @@ public class JavaFxHelloWorld extends Application {
     private static final int PORT_RANGE = 3;
     private int currentPort = -1;
     
-    private AppConfig appConfig;
+    private StorageConfig storageConfig;
     private FileStatisticsService fileStatsService;
-    private RootConfigService rootConfigService;
+    private MediaBrowseConfig rootConfigService;
     
     private Label uploadPathLabel;
     private Label logPathLabel;
@@ -55,18 +55,14 @@ public class JavaFxHelloWorld extends Application {
     
     @Override
     public void init() throws Exception {
-        appConfig = new AppConfig();
+        storageConfig = new StorageConfig();
         fileStatsService = new FileStatisticsService();
-        rootConfigService = new RootConfigService();
+        rootConfigService = new MediaBrowseConfig();
         
-        String uploadBaseDir = appConfig.getUploadBaseDir();
-        String logDir = appConfig.getLogDir();
+        storageConfig.syncToSystemProperties();
         
-        System.setProperty("app.log.dir", logDir);
-        System.setProperty("app.upload.base.dir", uploadBaseDir);
-        System.setProperty("app.upload.image.dir", uploadBaseDir + "images/");
-        System.setProperty("app.upload.video.dir", uploadBaseDir + "videos/");
-        System.setProperty("app.upload.livephoto.dir", uploadBaseDir + "livephotos/");
+        String uploadBaseDir = storageConfig.getUploadBaseDir();
+        String logDir = storageConfig.getLogDir();
         
         System.out.println("========================================");
         System.out.println("应用路径配置:");
@@ -172,26 +168,26 @@ public class JavaFxHelloWorld extends Application {
         uploadPathBox.setAlignment(Pos.CENTER_LEFT);
         Label uploadLabel = new Label("上传目录:");
         uploadLabel.setStyle("-fx-min-width: 70px;");
-        uploadPathLabel = new Label(appConfig.getUploadBaseDir());
+        uploadPathLabel = new Label(storageConfig.getUploadBaseDir());
         uploadPathLabel.setStyle("-fx-text-fill: #0066cc;");
         uploadPathLabel.setWrapText(true);
         uploadPathLabel.setMaxWidth(400);
         Button changeUploadPathBtn = new Button("修改");
         changeUploadPathBtn.setOnAction(e -> changeUploadPath());
         Button openUploadDirBtn = new Button("打开");
-        openUploadDirBtn.setOnAction(e -> openDirectory(appConfig.getUploadBaseDir()));
+        openUploadDirBtn.setOnAction(e -> openDirectory(storageConfig.getUploadBaseDir()));
         uploadPathBox.getChildren().addAll(uploadLabel, uploadPathLabel, changeUploadPathBtn, openUploadDirBtn);
         
         HBox logPathBox = new HBox(10);
         logPathBox.setAlignment(Pos.CENTER_LEFT);
         Label logLabel = new Label("日志目录:");
         logLabel.setStyle("-fx-min-width: 70px;");
-        logPathLabel = new Label(appConfig.getLogDir());
+        logPathLabel = new Label(storageConfig.getLogDir());
         logPathLabel.setStyle("-fx-text-fill: #0066cc;");
         logPathLabel.setWrapText(true);
         logPathLabel.setMaxWidth(400);
         Button openLogDirBtn = new Button("打开");
-        openLogDirBtn.setOnAction(e -> openDirectory(appConfig.getLogDir()));
+        openLogDirBtn.setOnAction(e -> openDirectory(storageConfig.getLogDir()));
         logPathBox.getChildren().addAll(logLabel, logPathLabel, openLogDirBtn);
         
         section.getChildren().addAll(sectionTitle, uploadPathBox, logPathBox);
@@ -277,7 +273,7 @@ public class JavaFxHelloWorld extends Application {
         DirectoryChooser chooser = new DirectoryChooser();
         chooser.setTitle("选择上传目录");
         
-        File currentDir = new File(appConfig.getUploadBaseDir());
+        File currentDir = new File(storageConfig.getUploadBaseDir());
         if (currentDir.exists()) {
             chooser.setInitialDirectory(currentDir.getParentFile());
         }
@@ -285,12 +281,8 @@ public class JavaFxHelloWorld extends Application {
         File selectedDir = chooser.showDialog(serviceButton.getScene().getWindow());
         if (selectedDir != null) {
             String newPath = selectedDir.getAbsolutePath() + "/";
-            appConfig.setUploadBaseDir(newPath);
-            
-            System.setProperty("app.upload.base.dir", newPath);
-            System.setProperty("app.upload.image.dir", newPath + "images/");
-            System.setProperty("app.upload.video.dir", newPath + "videos/");
-            System.setProperty("app.upload.livephoto.dir", newPath + "livephotos/");
+            storageConfig.setUploadBaseDir(newPath);
+            storageConfig.syncToSystemProperties();
             
             uploadPathLabel.setText(newPath);
             updateStatistics();
@@ -333,7 +325,7 @@ public class JavaFxHelloWorld extends Application {
     }
     
     private void updateStatistics() {
-        String uploadBaseDir = appConfig.getUploadBaseDir();
+        String uploadBaseDir = storageConfig.getUploadBaseDir();
         Map<String, Object> stats = fileStatsService.getAllStatistics(uploadBaseDir);
         
         int images = (Integer) stats.get("images");
@@ -383,13 +375,7 @@ public class JavaFxHelloWorld extends Application {
                 
                 currentPort = availablePort;
                 
-                String uploadBaseDir = appConfig.getUploadBaseDir();
-                String logDir = appConfig.getLogDir();
-                System.setProperty("app.log.dir", logDir);
-                System.setProperty("app.upload.base.dir", uploadBaseDir);
-                System.setProperty("app.upload.image.dir", uploadBaseDir + "images/");
-                System.setProperty("app.upload.video.dir", uploadBaseDir + "videos/");
-                System.setProperty("app.upload.livephoto.dir", uploadBaseDir + "livephotos/");
+                storageConfig.syncToSystemProperties();
                 
                 String[] newArgs;
                 if (commandLineArgs != null && commandLineArgs.length > 0) {
@@ -712,7 +698,7 @@ public class JavaFxHelloWorld extends Application {
     private void notifyServerReload() {
         if (context[0] != null && context[0].isActive()) {
             try {
-                RootConfigService service = context[0].getBean(RootConfigService.class);
+                MediaBrowseConfig service = context[0].getBean(MediaBrowseConfig.class);
                 service.reloadRoots();
             } catch (Exception e) {
                 System.out.println("无法刷新服务缓存: " + e.getMessage());

@@ -1,7 +1,7 @@
 package com.upload.picture.aspect;
 
 import com.alibaba.fastjson.JSON;
-import com.upload.picture.service.RootConfigService;
+import com.upload.picture.config.MediaBrowseConfig;
 import com.upload.picture.model.MediaRoot;
 import com.upload.picture.model.FileSystemItem;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -34,7 +34,7 @@ public class PerformanceLoggingAspect {
     private static final Logger logger = LoggerFactory.getLogger(PerformanceLoggingAspect.class);
     
     @Autowired(required = false)
-    private RootConfigService rootConfigService;
+    private MediaBrowseConfig mediaBrowseConfig;
     
     @Pointcut("execution(* com.upload.picture.controller..*.*(..))")
     public void controllerMethods() {}
@@ -101,8 +101,8 @@ public class PerformanceLoggingAspect {
         }
         
         if ("FileBrowseService".equals(className) && "browse".equals(methodName) && rootId != null) {
-            if (rootConfigService != null) {
-                MediaRoot root = rootConfigService.getRootById(rootId);
+            if (mediaBrowseConfig != null) {
+                MediaRoot root = mediaBrowseConfig.getRootById(rootId);
                 if (root != null) {
                     extraInfo = "实际目录: " + root.getPath();
                     paramLog.append(" | ").append(extraInfo);

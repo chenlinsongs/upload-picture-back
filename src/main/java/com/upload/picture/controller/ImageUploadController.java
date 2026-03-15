@@ -12,10 +12,11 @@ import com.upload.picture.model.ImageMetadata;
 import com.upload.picture.model.LivePhotoMetadata;
 import com.upload.picture.model.VideoMetadata;
 import com.upload.picture.model.MediaRoot;
-import com.upload.picture.service.RootConfigService;
+import com.upload.picture.config.MediaBrowseConfig;
 import com.upload.picture.service.FileBrowseService;
 import com.upload.picture.service.ThumbnailService;
 import com.upload.picture.service.DirectoryCacheService;
+import com.upload.picture.config.StorageConfig;
 import com.upload.picture.util.TimestampParser;
 import com.upload.picture.util.VideoMetadataWriter;
 import org.slf4j.Logger;
@@ -49,7 +50,7 @@ public class ImageUploadController {
     private static final Logger logger = LoggerFactory.getLogger(ImageUploadController.class);
     
     @Autowired(required = false)
-    private RootConfigService rootConfigService;
+    private MediaBrowseConfig mediaBrowseConfig;
     
     @Autowired(required = false)
     private FileBrowseService fileBrowseService;
@@ -59,6 +60,9 @@ public class ImageUploadController {
     
     @Autowired(required = false)
     private DirectoryCacheService directoryCacheService;
+    
+    @Autowired
+    private StorageConfig storageConfig;
     
     private static final List<String> ALLOWED_IMAGE_EXTENSIONS = Arrays.asList("jpg", "jpeg", "png", "gif", "bmp", "webp", "heic", "heif");
     private static final List<String> ALLOWED_VIDEO_EXTENSIONS = Arrays.asList("mov", "mp4", "avi", "mkv");
@@ -72,29 +76,6 @@ public class ImageUploadController {
         "video/quicktime", "video/mp4", "video/x-msvideo", "video/x-matroska"
     );
     
-    private String getUploadDir() {
-        String userHome = System.getProperty("user.home");
-        String appName = "FileUploadManager";
-        String defaultUploadBase = userHome + "/" + appName + "/uploads/";
-        String uploadBaseDir = System.getProperty("app.upload.base.dir", defaultUploadBase);
-        return System.getProperty("app.upload.image.dir", uploadBaseDir + "images/");
-    }
-    
-    private String getVideoDir() {
-        String userHome = System.getProperty("user.home");
-        String appName = "FileUploadManager";
-        String defaultUploadBase = userHome + "/" + appName + "/uploads/";
-        String uploadBaseDir = System.getProperty("app.upload.base.dir", defaultUploadBase);
-        return System.getProperty("app.upload.video.dir", uploadBaseDir + "videos/");
-    }
-    
-    private String getLivePhotoDir() {
-        String userHome = System.getProperty("user.home");
-        String appName = "FileUploadManager";
-        String defaultUploadBase = userHome + "/" + appName + "/uploads/";
-        String uploadBaseDir = System.getProperty("app.upload.base.dir", defaultUploadBase);
-        return System.getProperty("app.upload.livephoto.dir", uploadBaseDir + "livephotos/");
-    }
 
     @PostMapping("/upload")
     @ResponseBody
@@ -131,7 +112,7 @@ public class ImageUploadController {
                 }
             }
 
-            String uploadDirPath = getTargetUploadDir(folder);
+            String uploadDirPath = storageConfig.getTargetUploadDir(folder);
             File uploadDir = new File(uploadDirPath);
             if (!uploadDir.exists()) {
                 boolean created = uploadDir.mkdirs();
@@ -283,7 +264,7 @@ public class ImageUploadController {
 
                 String newFilename = generateFilename(fileExtension);
                 String datePath = new SimpleDateFormat("yyyy/MM/dd").format(new Date());
-                String uploadPath = getUploadDir() + datePath + "/";
+                String uploadPath = storageConfig.getImageDir() + datePath + "/";
 
                 File uploadDir = new File(uploadPath);
                 if (!uploadDir.exists()) {
@@ -350,7 +331,7 @@ public class ImageUploadController {
             }
 
             if (folder != null && !folder.isEmpty()) {
-                String customDirPath = getUploadBaseDir() + folder + "/";
+                String customDirPath = storageConfig.getUploadBaseDir() + folder + "/";
                 File customDir = new File(customDirPath);
                 
                 if (customDir.exists() && customDir.isDirectory()) {
@@ -380,7 +361,7 @@ public class ImageUploadController {
             
             switch (fileType.toLowerCase()) {
                 case "image":
-                    File imageDir = new File(getUploadDir());
+                    File imageDir = new File(storageConfig.getImageDir());
                     if (imageDir.exists() && imageDir.isDirectory()) {
                         File[] imageFiles = imageDir.listFiles((dir, name) -> {
                             String namePrefix = name;
@@ -399,7 +380,7 @@ public class ImageUploadController {
                     break;
                     
                 case "video":
-                    File videoDir = new File(getVideoDir());
+                    File videoDir = new File(storageConfig.getVideoDir());
                     if (videoDir.exists() && videoDir.isDirectory()) {
                         File[] videoFiles = videoDir.listFiles((dir, name) -> {
                             String namePrefix = name;
@@ -418,7 +399,7 @@ public class ImageUploadController {
                     break;
                     
                 case "livephoto":
-                    File livePhotoDir = new File(getLivePhotoDir());
+                    File livePhotoDir = new File(storageConfig.getLivePhotoDir());
                     if (livePhotoDir.exists() && livePhotoDir.isDirectory()) {
                         File[] livePhotoImageFiles = livePhotoDir.listFiles((dir, name) -> {
                             String namePrefix = name;
@@ -526,7 +507,7 @@ public class ImageUploadController {
                 }
             }
 
-            String videoDirPath = getTargetUploadDir(folder);
+            String videoDirPath = storageConfig.getTargetUploadDir(folder);
             File uploadDir = new File(videoDirPath);
             if (!uploadDir.exists()) {
                 boolean created = uploadDir.mkdirs();
@@ -717,7 +698,7 @@ public class ImageUploadController {
                 }
             }
 
-            String livePhotoDirPath = getTargetUploadDir(folder);
+            String livePhotoDirPath = storageConfig.getTargetUploadDir(folder);
             File uploadDir = new File(livePhotoDirPath);
             if (!uploadDir.exists()) {
                 boolean created = uploadDir.mkdirs();
@@ -1065,13 +1046,13 @@ public class ImageUploadController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            if (rootConfigService == null) {
+            if (mediaBrowseConfig == null) {
                 result.put("success", false);
                 result.put("error", "根目录服务未初始化");
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(result);
             }
             
-            List<MediaRoot> roots = rootConfigService.getRoots();
+            List<MediaRoot> roots = mediaBrowseConfig.getRoots();
             
             for (MediaRoot root : roots) {
                 File rootDir = new File(root.getPath());
@@ -1105,14 +1086,14 @@ public class ImageUploadController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            if (rootConfigService == null) {
+            if (mediaBrowseConfig == null) {
                 result.put("success", false);
                 result.put("error", "根目录服务未初始化");
                 return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(result);
             }
             
-            rootConfigService.reloadRoots();
-            List<MediaRoot> roots = rootConfigService.getRoots();
+            mediaBrowseConfig.reloadRoots();
+            List<MediaRoot> roots = mediaBrowseConfig.getRoots();
             
             result.put("success", true);
             result.put("message", "配置已刷新");
@@ -1412,37 +1393,6 @@ public class ImageUploadController {
         }
     }
     
-    private String getTargetUploadDir(String folder) {
-        String baseDir = getUploadBaseDir();
-        
-        if (folder == null || folder.trim().isEmpty()) {
-            return baseDir;
-        }
-        
-        String safeFolder = folder.trim()
-            .replaceAll("[/\\\\:*?\"<>|]", "_")
-            .replaceAll("\\.\\.", "");
-        
-        if (safeFolder.isEmpty()) {
-            return baseDir;
-        }
-        
-        String targetDir = baseDir + safeFolder + "/";
-        
-        File dir = new File(targetDir);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
-        
-        return targetDir;
-    }
-    
-    private String getUploadBaseDir() {
-        String userHome = System.getProperty("user.home");
-        String appName = "FileUploadManager";
-        String defaultUploadBase = userHome + "/" + appName + "/uploads/";
-        return System.getProperty("app.upload.base.dir", defaultUploadBase);
-    }
     
     @GetMapping("/upload/folders")
     @ResponseBody
@@ -1450,7 +1400,7 @@ public class ImageUploadController {
         Map<String, Object> result = new HashMap<>();
         
         try {
-            String baseDir = getUploadBaseDir();
+            String baseDir = storageConfig.getUploadBaseDir();
             File baseDirFile = new File(baseDir);
             
             if (!baseDirFile.exists()) {
@@ -1556,7 +1506,7 @@ public class ImageUploadController {
                 return ResponseEntity.badRequest().body(result);
             }
             
-            String baseDir = getUploadBaseDir();
+            String baseDir = storageConfig.getUploadBaseDir();
             File newFolder = new File(baseDir, safeName);
             
             if (newFolder.exists()) {
