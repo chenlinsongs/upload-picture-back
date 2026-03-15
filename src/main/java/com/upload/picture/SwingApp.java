@@ -547,8 +547,9 @@ public class SwingApp {
             MediaRoot added = mediaBrowseConfig.addRoot(name, path, icon, descField.getText().trim(), readonlyCheck.isSelected());
             if (added != null) {
                 JOptionPane.showMessageDialog(frame,
-                    "根目录已添加！\n请重启服务以使配置生效。", "成功", JOptionPane.INFORMATION_MESSAGE);
+                    "根目录已添加！", "成功", JOptionPane.INFORMATION_MESSAGE);
                 loadRoots();
+                notifyServerReload();
             }
         }
     }
@@ -649,6 +650,7 @@ public class SwingApp {
             if (mediaBrowseConfig.deleteRoot(selected.getId())) {
                 JOptionPane.showMessageDialog(frame, "根目录已删除！", "成功", JOptionPane.INFORMATION_MESSAGE);
                 loadRoots();
+                notifyServerReload();
             } else {
                 JOptionPane.showMessageDialog(frame, "删除失败！", "错误", JOptionPane.ERROR_MESSAGE);
             }
