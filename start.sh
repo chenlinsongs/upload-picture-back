@@ -1,8 +1,11 @@
 #!/bin/bash
 
 # 文件上传服务启动脚本
-# 使用JavaFX GUI界面管理Spring Boot服务
-# 需要 JDK 17 + JavaFX 21
+#
+# 启动方式:
+#   ./start.sh          # GUI 模式（打开 Swing 管理界面）
+#   ./start.sh --cli    # CLI 模式（直接启动服务，适合树莓派等无桌面环境）
+#   ./start.sh --cli --server.port=8080  # CLI 模式 + 指定端口
 
 echo "=========================================="
 echo "  文件上传服务管理器"
@@ -32,5 +35,5 @@ if [ ! -f "$JAR_FILE" ]; then
     exit 1
 fi
 
-# 启动应用
+# 启动应用（传入所有命令行参数）
 java -jar "$JAR_FILE" "$@"

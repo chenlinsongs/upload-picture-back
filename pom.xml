@@ -92,25 +92,6 @@
             <version>3.10.1</version>
         </dependency>
 
-        <!-- JavaFX 依赖 -->
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-controls</artifactId>
-            <version>21.0.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-graphics</artifactId>
-            <version>21.0.2</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.openjfx</groupId>
-            <artifactId>javafx-base</artifactId>
-            <version>21.0.2</version>
-        </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -132,7 +113,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>com.upload.picture.JavaFxHelloWorld</mainClass>
+                    <mainClass>com.upload.picture.AppLauncher</mainClass>
                 </configuration>
             </plugin>
 
@@ -142,39 +123,6 @@
                 <configuration>
                     <source>17</source>
                     <target>17</target>
-                </configuration>
-            </plugin>
-
-            <!-- JavaFX Maven 插件 -->
-            <plugin>
-                <groupId>org.openjfx</groupId>
-                <artifactId>javafx-maven-plugin</artifactId>
-                <version>0.0.8</version>
-                <configuration>
-                    <mainClass>com.upload.picture.JavaFxHelloWorld</mainClass>
-                    <options>
-                        <option>-Djava.library.path=/usr/local/opt/libheif/lib</option>
-                    </options>
-                </configuration>
-            </plugin>
-
-            <!-- jpackage Maven 插件 - 打包原生应用 -->
-            <plugin>
-                <groupId>org.panteleyev</groupId>
-                <artifactId>jpackage-maven-plugin</artifactId>
-                <version>1.6.5</version>
-                <configuration>
-                    <name>文件上传服务管理器</name>
-                    <appVersion>1.0</appVersion>
-                    <vendor>Your Name</vendor>
-                    <destination>dist</destination>
-                    <module>com.upload.picture/com.upload.picture.JavaFxHelloWorld</module>
-                    <runtimeImage>target/java-runtime</runtimeImage>
-                    <javaOptions>
-                        <option>-Dfile.encoding=UTF-8</option>
-                    </javaOptions>
-                    <type>DMG</type>
-                    <macPackageName>文件上传服务管理器</macPackageName>
                 </configuration>
             </plugin>
         </plugins>
