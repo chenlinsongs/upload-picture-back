@@ -3,7 +3,11 @@ package com.upload.picture;
 import com.upload.picture.config.StorageConfig;
 
 import java.io.File;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * 应用统一入口
@@ -17,6 +21,9 @@ import java.util.Arrays;
  *      适用于树莓派等无桌面环境的服务器
  */
 public class AppLauncher {
+
+    public static final int START_PORT = 50000;
+    public static final int PORT_RANGE = 3;
 
     public static void main(String[] args) {
         boolean cliMode = Arrays.stream(args).anyMatch(
@@ -63,10 +70,49 @@ public class AppLauncher {
     private static void startCli(String[] args) {
         System.out.println("启动模式: CLI（命令行直接启动）");
 
-        String[] springArgs = Arrays.stream(args)
-            .filter(a -> !a.equalsIgnoreCase("--cli") && !a.equalsIgnoreCase("--headless"))
-            .toArray(String[]::new);
+        List<String> springArgs = new ArrayList<>();
+        String specifiedPort = null;
 
-        org.springframework.boot.SpringApplication.run(UploadPictureApplication.class, springArgs);
+        for (String arg : args) {
+            if (arg.equalsIgnoreCase("--cli") || arg.equalsIgnoreCase("--headless")) {
+                continue;
+            }
+            if (arg.startsWith("--server.port=") || arg.startsWith("--port=")) {
+                specifiedPort = arg.substring(arg.indexOf('=') + 1);
+                springArgs.add("--server.port=" + specifiedPort);
+            } else {
+                springArgs.add(arg);
+            }
+        }
+
+        if (specifiedPort == null) {
+            int port = findAvailablePort();
+            if (port == -1) {
+                System.err.println("启动失败: 端口范围 " + START_PORT + "-" + (START_PORT + PORT_RANGE - 1) + " 内无可用端口");
+                System.exit(1);
+            }
+            springArgs.add("--server.port=" + port);
+            System.out.println("自动分配端口: " + port);
+        } else {
+            System.out.println("使用指定端口: " + specifiedPort);
+        }
+
+        org.springframework.boot.SpringApplication.run(
+            UploadPictureApplication.class, springArgs.toArray(new String[0]));
+    }
+
+    /**
+     * 从 START_PORT 开始扫描，返回第一个可用端口；全部占用则返回 -1
+     */
+    public static int findAvailablePort() {
+        for (int i = 0; i < PORT_RANGE; i++) {
+            int port = START_PORT + i;
+            try (ServerSocket ss = new ServerSocket(port)) {
+                ss.setReuseAddress(true);
+                return port;
+            } catch (IOException ignored) {
+            }
+        }
+        return -1;
     }
 }

@@ -14,7 +14,6 @@ import javax.swing.table.AbstractTableModel;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +26,6 @@ import java.util.Map;
  * - 根目录配置：管理 iOS 客户端可浏览的媒体目录（增删改查）
  */
 public class SwingApp {
-
-    private static final int START_PORT = 50000;
-    private static final int PORT_RANGE = 3;
 
     private final String[] commandLineArgs;
     private final StorageConfig storageConfig;
@@ -363,10 +359,10 @@ public class SwingApp {
 
         new Thread(() -> {
             try {
-                int availablePort = findAvailablePort();
+                int availablePort = AppLauncher.findAvailablePort();
                 if (availablePort == -1) {
                     SwingUtilities.invokeLater(() -> {
-                        messageLabel.setText("启动失败: 端口范围 " + START_PORT + "-" + (START_PORT + PORT_RANGE - 1) + " 内无可用端口");
+                        messageLabel.setText("启动失败: 端口范围 " + AppLauncher.START_PORT + "-" + (AppLauncher.START_PORT + AppLauncher.PORT_RANGE - 1) + " 内无可用端口");
                         messageLabel.setForeground(Color.RED);
                         statusLabel.setText("● 已停止");
                         statusLabel.setForeground(Color.RED);
@@ -762,20 +758,6 @@ public class SwingApp {
         shuttingDown = true;
         System.out.println("正在关闭应用...");
         cleanupAndExit(true);
-    }
-
-    // ==================== 端口检测 ====================
-
-    private int findAvailablePort() {
-        for (int i = 0; i < PORT_RANGE; i++) {
-            int port = START_PORT + i;
-            try (ServerSocket ss = new ServerSocket(port)) {
-                ss.setReuseAddress(true);
-                return port;
-            } catch (IOException ignored) {
-            }
-        }
-        return -1;
     }
 
     // ==================== 表格模型 ====================
