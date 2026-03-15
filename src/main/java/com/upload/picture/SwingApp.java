@@ -101,24 +101,43 @@ public class SwingApp {
     }
 
     /**
-     * 注册 JVM 关闭钩子，处理命令行 Ctrl+C / kill 等信号
-     * 确保 Spring 上下文和 Swing 窗口都被正确清理
+     * 注册信号处理，确保各种终止方式都能正确清理资源：
+     * - Ctrl+C (SIGINT) / kill (SIGTERM): 通过 JVM shutdown hook 处理
+     * - Ctrl+Z (SIGTSTP): 通过 sun.misc.Signal 拦截，改为执行退出而非挂起
      */
     private void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             if (shuttingDown) return;
             shuttingDown = true;
             System.out.println("收到关闭信号，正在清理资源...");
-            if (springContext != null && springContext.isActive()) {
-                try {
-                    springContext.close();
-                } catch (Exception ignored) {
-                }
-            }
-            if (frame != null) {
-                frame.dispose();
-            }
+            cleanupAndExit(false);
         }, "shutdown-hook"));
+
+        try {
+            sun.misc.Signal.handle(new sun.misc.Signal("TSTP"), signal -> {
+                System.out.println("收到 Ctrl+Z (SIGTSTP)，正在关闭应用...");
+                if (shuttingDown) return;
+                shuttingDown = true;
+                cleanupAndExit(true);
+            });
+        } catch (IllegalArgumentException e) {
+            System.out.println("当前平台不支持捕获 SIGTSTP 信号: " + e.getMessage());
+        }
+    }
+
+    private void cleanupAndExit(boolean callSystemExit) {
+        if (springContext != null && springContext.isActive()) {
+            try {
+                springContext.close();
+            } catch (Exception ignored) {
+            }
+        }
+        if (frame != null) {
+            frame.dispose();
+        }
+        if (callSystemExit) {
+            System.exit(0);
+        }
     }
 
     // ==================== 服务管理 Tab ====================
@@ -742,14 +761,7 @@ public class SwingApp {
         }
         shuttingDown = true;
         System.out.println("正在关闭应用...");
-        if (springContext != null && springContext.isActive()) {
-            try {
-                springContext.close();
-            } catch (Exception ignored) {
-            }
-        }
-        frame.dispose();
-        System.exit(0);
+        cleanupAndExit(true);
     }
 
     // ==================== 端口检测 ====================
