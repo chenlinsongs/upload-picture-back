@@ -35,6 +35,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +43,7 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Enumeration;
 
 @Controller
 @RequestMapping("/image")
@@ -1017,11 +1019,12 @@ public class ImageUploadController {
         
         try {
             InetAddress localHost = InetAddress.getLocalHost();
+            String ipAddress = getLocalLanIp();
             
             result.put("success", true);
             result.put("computerName", localHost.getHostName());
             result.put("hostName", localHost.getHostName());
-            result.put("ipAddress", localHost.getHostAddress());
+            result.put("ipAddress", ipAddress);
             result.put("osName", System.getProperty("os.name"));
             result.put("osVersion", System.getProperty("os.version"));
             result.put("osArch", System.getProperty("os.arch"));
@@ -1031,10 +1034,41 @@ public class ImageUploadController {
             
             return ResponseEntity.ok(result);
             
-        } catch (UnknownHostException e) {
+        } catch (Exception e) {
             result.put("success", false);
             result.put("message", "无法获取服务器信息: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+        }
+    }
+    
+    /**
+     * 获取本机局域网 IP 地址
+     * 遍历网络接口，优先返回非回环的 IPv4 地址（解决 Linux/树莓派上 getLocalHost 返回 127.0.1.1 的问题）
+     */
+    private String getLocalLanIp() {
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface ni = interfaces.nextElement();
+                if (ni.isLoopback() || !ni.isUp()) continue;
+                
+                Enumeration<InetAddress> addresses = ni.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress addr = addresses.nextElement();
+                    if (addr.isLoopbackAddress()) continue;
+                    if (addr instanceof java.net.Inet4Address) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("遍历网络接口失败: {}", e.getMessage());
+        }
+        
+        try {
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (UnknownHostException e) {
+            return "127.0.0.1";
         }
     }
     
