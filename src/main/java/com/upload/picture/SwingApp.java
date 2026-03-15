@@ -39,6 +39,7 @@ public class SwingApp {
     private JFrame frame;
     private int currentPort = -1;
     private ConfigurableApplicationContext springContext;
+    private volatile boolean shuttingDown = false;
 
     // 服务管理 Tab 控件
     private JLabel uploadPathLabel;
@@ -82,6 +83,8 @@ public class SwingApp {
             }
         });
 
+        registerShutdownHook();
+
         JTabbedPane tabbedPane = new JTabbedPane();
         tabbedPane.addTab("服务管理", createServiceManagementPanel());
         tabbedPane.addTab("预览目录配置", createRootsConfigPanel());
@@ -95,6 +98,27 @@ public class SwingApp {
         loadRoots();
 
         frame.setVisible(true);
+    }
+
+    /**
+     * 注册 JVM 关闭钩子，处理命令行 Ctrl+C / kill 等信号
+     * 确保 Spring 上下文和 Swing 窗口都被正确清理
+     */
+    private void registerShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (shuttingDown) return;
+            shuttingDown = true;
+            System.out.println("收到关闭信号，正在清理资源...");
+            if (springContext != null && springContext.isActive()) {
+                try {
+                    springContext.close();
+                } catch (Exception ignored) {
+                }
+            }
+            if (frame != null) {
+                frame.dispose();
+            }
+        }, "shutdown-hook"));
     }
 
     // ==================== 服务管理 Tab ====================
@@ -715,11 +739,13 @@ public class SwingApp {
             if (confirm != JOptionPane.YES_OPTION) {
                 return;
             }
-            System.out.println("窗口关闭，正在关闭 Spring Boot 服务...");
+        }
+        shuttingDown = true;
+        System.out.println("正在关闭应用...");
+        if (springContext != null && springContext.isActive()) {
             try {
                 springContext.close();
-            } catch (Exception ex) {
-                ex.printStackTrace();
+            } catch (Exception ignored) {
             }
         }
         frame.dispose();
