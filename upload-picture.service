@@ -1,0 +1,24 @@
+[Unit]
+Description=File Upload Picture Service
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=__INSTALL_DIR__/start.sh --cli
+ExecStop=/bin/kill -TERM $MAINPID
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+Environment=JAVA_HOME=__JAVA_HOME__
+Environment=PATH=__JAVA_HOME__/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=HOME=__USER_HOME__
+
+StandardOutput=append:__USER_HOME__/FileUploadManager/logs/upload.log
+StandardError=append:__USER_HOME__/FileUploadManager/logs/upload.log
+
+[Install]
+WantedBy=multi-user.target
