@@ -1047,19 +1047,36 @@ public class ImageUploadController {
      */
     private String getLocalLanIp() {
         try {
+            String fallback = null;
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()) {
                 NetworkInterface ni = interfaces.nextElement();
-                if (ni.isLoopback() || !ni.isUp()) continue;
+                if (ni.isLoopback() || !ni.isUp() || ni.isVirtual()) continue;
+                
+                String name = ni.getName().toLowerCase();
+                if (name.startsWith("utun") || name.startsWith("tun") || name.startsWith("tap") 
+                        || name.startsWith("ppp") || name.startsWith("vmnet") || name.startsWith("vboxnet")
+                        || name.startsWith("docker") || name.startsWith("br-") || name.startsWith("veth")) {
+                    continue;
+                }
+                
+                boolean isPhysical = name.startsWith("en") || name.startsWith("eth") || name.startsWith("wlan");
                 
                 Enumeration<InetAddress> addresses = ni.getInetAddresses();
                 while (addresses.hasMoreElements()) {
                     InetAddress addr = addresses.nextElement();
-                    if (addr.isLoopbackAddress()) continue;
-                    if (addr instanceof java.net.Inet4Address) {
+                    if (addr.isLoopbackAddress() || !(addr instanceof java.net.Inet4Address)) continue;
+                    
+                    if (isPhysical) {
                         return addr.getHostAddress();
                     }
+                    if (fallback == null) {
+                        fallback = addr.getHostAddress();
+                    }
                 }
+            }
+            if (fallback != null) {
+                return fallback;
             }
         } catch (Exception e) {
             logger.warn("遍历网络接口失败: {}", e.getMessage());

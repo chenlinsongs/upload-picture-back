@@ -1,5 +1,7 @@
 package com.upload.picture.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -43,14 +45,17 @@ public class UploadTask {
         this.expiresAt = this.createdAt + 24 * 60 * 60 * 1000L;
     }
     
+    @JsonIgnore
     public boolean isExpired() {
         return System.currentTimeMillis() > expiresAt;
     }
     
+    @JsonIgnore
     public boolean isComplete() {
         return uploadedChunks.size() >= totalChunks;
     }
     
+    @JsonIgnore
     public double getProgress() {
         if (totalChunks <= 0) return 0.0;
         return (double) uploadedChunks.size() / totalChunks;

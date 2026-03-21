@@ -1,7 +1,13 @@
 package com.upload.picture.service;
 
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.mov.QuickTimeDirectory;
+import com.drew.metadata.mp4.Mp4Directory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.upload.picture.model.UploadTask;
+import com.upload.picture.model.VideoMetadata;
+import com.upload.picture.util.VideoMetadataWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -200,6 +206,10 @@ public class ResumableUploadService {
         
         try {
             File chunkPath = new File(getTempUploadDir() + uploadId + "/chunk_" + chunkIndex + ".tmp");
+            File chunkDir = chunkPath.getParentFile();
+            if (!chunkDir.exists()) {
+                chunkDir.mkdirs();
+            }
             chunkFile.transferTo(chunkPath);
             
             task.addUploadedChunk(chunkIndex);
@@ -258,8 +268,39 @@ public class ResumableUploadService {
             logger.info("开始合并分片: uploadId={}, totalChunks={}", uploadId, task.getTotalChunks());
             mergeChunks(task, targetFile);
             
-            if (timestamp != null && timestamp > 0) {
-                setFileTimestamp(targetFile, timestamp);
+            Long finalTimestamp = null;
+            String timestampSource = null;
+            
+            if (task.getMetadataJson() != null && !task.getMetadataJson().isEmpty()) {
+                try {
+                    VideoMetadata videoMetadata = objectMapper.readValue(task.getMetadataJson(), VideoMetadata.class);
+                    if (videoMetadata.getCreationDate() != null) {
+                        finalTimestamp = VideoMetadataWriter.parseCreationDate(videoMetadata.getCreationDate());
+                        if (finalTimestamp != null) {
+                            timestampSource = "ios_metadata";
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.debug("解析任务元数据失败: {}", e.getMessage());
+                }
+            }
+            
+            if (finalTimestamp == null) {
+                finalTimestamp = extractTimestampFromVideo(targetFile);
+                if (finalTimestamp != null) {
+                    timestampSource = "file_metadata";
+                }
+            }
+            
+            if (finalTimestamp == null && timestamp != null && timestamp > 0) {
+                finalTimestamp = timestamp;
+                timestampSource = "client_param";
+            }
+            
+            if (finalTimestamp != null) {
+                setFileTimestamp(targetFile, finalTimestamp);
+                logger.info("已设置文件时间戳: {} -> {} (来源: {})", 
+                    task.getFileName(), new Date(finalTimestamp), timestampSource);
             }
             
             cleanupTask(uploadId);
@@ -303,6 +344,31 @@ public class ResumableUploadService {
         }
         
         logger.info("分片合并完成: {} -> {}", task.getUploadId(), targetFile.getName());
+    }
+    
+    private Long extractTimestampFromVideo(File file) {
+        try {
+            Metadata metadata = ImageMetadataReader.readMetadata(file);
+            
+            QuickTimeDirectory quickTime = metadata.getFirstDirectoryOfType(QuickTimeDirectory.class);
+            if (quickTime != null) {
+                Date creationTime = quickTime.getDate(QuickTimeDirectory.TAG_CREATION_TIME);
+                if (creationTime != null) {
+                    return creationTime.getTime();
+                }
+            }
+            
+            Mp4Directory mp4 = metadata.getFirstDirectoryOfType(Mp4Directory.class);
+            if (mp4 != null) {
+                Date creationTime = mp4.getDate(Mp4Directory.TAG_CREATION_TIME);
+                if (creationTime != null) {
+                    return creationTime.getTime();
+                }
+            }
+        } catch (Exception e) {
+            logger.debug("无法从文件提取视频元数据时间戳: {} - {}", file.getName(), e.getMessage());
+        }
+        return null;
     }
     
     private void setFileTimestamp(File file, long timestamp) {
